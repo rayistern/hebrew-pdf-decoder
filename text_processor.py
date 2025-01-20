@@ -15,7 +15,7 @@ def process_text_files(input_dir, output_dir):
     for filename in sorted(os.listdir(input_dir)):
         if filename.endswith("_raw.txt"):
             input_path = os.path.join(input_dir, filename)
-            output_path = os.path.join(output_dir, filename.replace("_raw.txt", ".txt"))
+            output_path = os.path.join(output_dir, filename.replace("_raw.txt", ".md"))
 
             with open(input_path, 'r', encoding='utf-8') as infile:
                 text = infile.read()
@@ -43,14 +43,14 @@ def clean_text(text):
     # Remove hyphenation at line breaks
     text = re.sub(r'-\s*\n\s*', '', text)
 
-    # Replace single newlines not followed by parentheses (actual footnotes) with spaces
-    text = re.sub(r'(?<!\n)\n(?!\()', ' ', text)
+    # Normalize multiple newlines to a single newline
+    text = re.sub(r'\n\s*\n+', '\n', text)
 
     # Normalize multiple spaces to a single space
     text = re.sub(r'[ \t]+', ' ', text)
 
-    # Strip leading and trailing whitespace
-    text = text.strip()
+    # Strip leading and trailing whitespace on each line
+    text = '\n'.join(line.strip() for line in text.split('\n'))
 
     return text
 
@@ -65,6 +65,6 @@ def correct_text_direction(text):
 
 if __name__ == "__main__":
     input_dir = "extracted_pages"
-    output_dir = "processed_pages"
+    output_dir = "input_files"
 
     process_text_files(input_dir, output_dir)
