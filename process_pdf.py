@@ -1,9 +1,9 @@
-import fitz  # PyMuPDF
 import os
-from datetime import datetime
-import pathlib
 import re
-from bidi.algorithm import get_display  # Import get_display from python-bidi
+import fitz  # PyMuPDF
+import pathlib
+from datetime import datetime
+from bidi.algorithm import get_display
 
 def create_hebrew_mapping():
     mapping = {
@@ -131,6 +131,7 @@ def create_hebrew_mapping():
         '9': '9',    # U+0039 to U+0039
     }
     return mapping
+
 def decode_text(garbled_text, mapping):
     decoded = ''
     missing_chars = set()
@@ -145,44 +146,29 @@ def decode_text(garbled_text, mapping):
         print(f"Missing mappings for: {', '.join(missing_chars)}")
     return decoded
 
-def extract_and_decode_pdf_pages(pdf_path, start_page, end_page, output_dir):
+def extract_text_from_pdf(pdf_path):
     try:
         # Open the PDF using PyMuPDF
         doc = fitz.open(pdf_path)
         num_pages = len(doc)
+        print(f"Total pages in PDF: {num_pages}")
 
-        # Validate page numbers
-        if start_page < 0 or end_page >= num_pages:
-            print(f"Error: Page range {start_page + 1} to {end_page + 1} is invalid. PDF has {num_pages} pages.")
-            return
-
-        # Get the mapping
-        mapping = create_hebrew_mapping()
-
-        for page_num in range(start_page, end_page + 1):
-            # Get output filename
-            output_path = get_output_filename(pdf_path, page_num, output_dir)
-
-            # Get the specified page
+        # Extract text from all pages and concatenate
+        all_text = ''
+        for page_num in range(num_pages):
             page = doc[page_num]
-
-            # Extract text from the page using a custom function to handle order
+            # Extract text from the page using a custom function
             text = extract_text_from_page(page)
-
-            # Decode the text
-            decoded_text = decode_text(text, mapping)
-
-            # Write the decoded text to file for further processing
-            with open(output_path, 'w', encoding='utf-8') as out_file:
-                out_file.write(decoded_text)
-
-            print(f"Decoded text for page {page_num + 1} has been saved to {output_path}")
+            all_text += text + '\n'  # Add a newline between pages
 
         # Close the document
         doc.close()
 
+        return all_text
+
     except Exception as e:
         print(f"Error processing PDF: {e}")
+        return ''
 
 def extract_text_from_page(page):
     # Extract text blocks with their positions
@@ -190,6 +176,7 @@ def extract_text_from_page(page):
 
     # Sort blocks: adjust the sort key depending on layout
     # For example, sort by vertical position (y0), then horizontal position (x0)
+    # For RTL languages, you might need to adjust the sorting to fit the text flow
     blocks.sort(key=lambda b: (b[1], b[0]))
 
     text = ''
@@ -199,18 +186,62 @@ def extract_text_from_page(page):
 
     return text
 
-def get_output_filename(pdf_path, page_num, output_dir):
-    pdf_name = pathlib.Path(pdf_path).stem
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    os.makedirs(output_dir, exist_ok=True)
-    filename = f"{timestamp}_{pdf_name}_page{page_num+1:03d}_raw.txt"
-    return os.path.join(output_dir, filename)
+def clean_text(text):
+    # Remove sequences of numbers (footnote markers), possibly with punctuation, surrounded by newlines
+    text = re.sub(r'\n\s*\d+[\s]*[.,]?\s*\n', '\n', text)
+
+    # Remove hyphenation at line breaks
+    text = re.sub(r'-\s*\n\s*', '', text)
+
+    # Remove line breaks around double quotes
+    double_quotes = r'["״]'
+    text = re.sub(fr'({double_quotes})\s*\n\s*', r'\1', text)  # After opening quote
+    text = re.sub(fr'\s*\n\s*({double_quotes})', r'\1', text)  # Before closing quote
+    text = re.sub(fr'\n\s*({double_quotes})\s*\n', r'\1', text)  # Standalone quotes
+
+    # Normalize multiple newlines to a single newline
+    text = re.sub(r'\n\s*\n+', '\n', text)
+
+    # Normalize multiple spaces to a single space
+    text = re.sub(r'[ \t]+', ' ', text)
+
+    # Strip leading and trailing whitespace on each line
+    text = '\n'.join(line.strip() for line in text.split('\n'))
+
+    return text
+
+def correct_text_direction(text):
+    # Correct the text direction using python-bidi
+    final_text = get_display(text)
+
+    # Optionally, add Right-to-Left Mark at the beginning
+    final_text = '\u200F' + final_text
+
+    return final_text
+
+def process_pdf(pdf_path, output_file):
+    # Step 1: Extract text from PDF
+    raw_text = extract_text_from_pdf(pdf_path)
+
+    # Step 2: Decode the text
+    mapping = create_hebrew_mapping()
+    decoded_text = decode_text(raw_text, mapping)
+
+    # Step 3: Clean the text
+    cleaned_text = clean_text(decoded_text)
+
+    # Step 4: Correct text direction
+    final_text = correct_text_direction(cleaned_text)
+
+    # Write the final processed text to output file
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        outfile.write(final_text)
+
+    print(f"Final processed text has been saved to {output_file}")
 
 if __name__ == "__main__":
     pdf_path = "lh1.pdf"  # Replace with your PDF file path
-    start_page = 0        # Starting page number (0-based index)
-    end_page = 55         # Ending page number (0-based index)
-    output_dir = "extracted_pages"
+    output_file = "final_text/full_processed_text.txt"
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    # Extract and decode the pages in the specified range
-    extract_and_decode_pdf_pages(pdf_path, start_page, end_page, output_dir)
+    process_pdf(pdf_path, output_file) 
