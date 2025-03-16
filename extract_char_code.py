@@ -1,4 +1,4 @@
-with open('garbled28.txt', 'rb') as file:
+with open('t1.txt', 'rb') as file:
     lines = file.readlines()
 
 for line_number, line in enumerate(lines, start=1):
