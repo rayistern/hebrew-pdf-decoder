@@ -240,8 +240,8 @@ def process_pdf(pdf_path, output_file):
     print(f"Final processed text has been saved to {output_file}")
 
 if __name__ == "__main__":
-    pdf_path = "lh1.pdf"  # Replace with your PDF file path
-    output_file = "final_text/full_processed_text.txt"
+    pdf_path = "25tisa1a.pdf"  # Replace with your PDF file path
+    output_file = "final_text/full_processed_text1a.txt"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     process_pdf(pdf_path, output_file) 

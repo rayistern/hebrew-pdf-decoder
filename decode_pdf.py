@@ -207,9 +207,9 @@ def get_output_filename(pdf_path, page_num, output_dir):
     return os.path.join(output_dir, filename)
 
 if __name__ == "__main__":
-    pdf_path = "lh1.pdf"  # Replace with your PDF file path
+    pdf_path = "25tisa1a.pdf"  # Replace with your PDF file path
     start_page = 0        # Starting page number (0-based index)
-    end_page = 55         # Ending page number (0-based index)
+    end_page = 5         # Ending page number (0-based index)
     output_dir = "extracted_pages"
 
     # Extract and decode the pages in the specified range
